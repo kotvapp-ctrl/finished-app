@@ -1,0 +1,17 @@
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.kakumiro.onlinetv',
+  appName: 'Kakumiro Online TV',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+    cleartext: true,
+  },
+  android: {
+    allowMixedContent: true,
+    backgroundColor: '#101016',
+  },
+};
+
+export default config;

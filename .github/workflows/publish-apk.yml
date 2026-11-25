@@ -1,0 +1,212 @@
+name: Build and Publish Android APK and AAB
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - 'android-release/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish-android:
+    name: Build Mobile Test APK and Play Console AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies and sync Capacitor Android assets
+        run: |
+          set -euo pipefail
+          npm install
+          npm run build
+          npx cap copy android
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configure Play Console upload keystore (if secrets provided)
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASS" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASS" ]; then
+            KEYSTORE_FILE="${RUNNER_TEMP}/play-upload.keystore"
+            printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$KEYSTORE_FILE"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_FILE" >> "$GITHUB_ENV"
+            echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build debug APK (mobile install) and release AAB (Play Console)
+        env:
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          chmod +x android/gradlew
+          cd android
+          ./gradlew :app:assembleDebug :app:bundleRelease --no-daemon
+
+      - name: Validate and stage APK + AAB in android-release/
+        id: validate
+        run: |
+          set -euo pipefail
+          APK_SRC="android/app/build/outputs/apk/debug/app-debug.apk"
+          AAB_SRC="android/app/build/outputs/bundle/release/app-release.aab"
+
+          if [ ! -s "$APK_SRC" ]; then
+            echo "Error: Newly compiled $APK_SRC is missing or empty." >&2
+            exit 1
+          fi
+          if [ ! -s "$AAB_SRC" ]; then
+            echo "Error: Newly compiled $AAB_SRC is missing or empty." >&2
+            exit 1
+          fi
+
+          unzip -tq "$APK_SRC"
+          unzip -tq "$AAB_SRC"
+
+          APKSIGNER_BIN=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -name apksigner 2>/dev/null | sort -V | tail -n 1 || true)
+          if [ -n "$APKSIGNER_BIN" ] && [ -x "$APKSIGNER_BIN" ]; then
+            "$APKSIGNER_BIN" verify --print-certs "$APK_SRC"
+          fi
+
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
+            jarsigner -verify -verbose -certs "$AAB_SRC" >/dev/null
+          fi
+
+          mkdir -p android-release
+          cp "$APK_SRC" android-release/app-debug.apk
+          cp "$AAB_SRC" android-release/app-release.aab
+
+          (cd android-release && sha256sum app-debug.apk > app-debug.apk.sha256)
+          (cd android-release && sha256sum app-release.aab > app-release.aab.sha256)
+
+          APK_SIZE_BYTES=$(wc -c < android-release/app-debug.apk | tr -d ' ')
+          APK_SIZE_HUMAN=$(du -h android-release/app-debug.apk | cut -f1)
+          APK_SHA256=$(awk '{print $1}' android-release/app-debug.apk.sha256)
+
+          AAB_SIZE_BYTES=$(wc -c < android-release/app-release.aab | tr -d ' ')
+          AAB_SIZE_HUMAN=$(du -h android-release/app-release.aab | cut -f1)
+          AAB_SHA256=$(awk '{print $1}' android-release/app-release.aab.sha256)
+
+          cat > android-release/BUILD_INFO.txt <<EOF
+          Commit: ${{ github.sha }}
+          Version Code: ${{ github.run_number }}
+          APK (Mobile Testing): android-release/app-debug.apk ($APK_SIZE_HUMAN, SHA-256: $APK_SHA256)
+          AAB (Google Play Console): android-release/app-release.aab ($AAB_SIZE_HUMAN, SHA-256: $AAB_SHA256)
+          Release AAB Signed With Upload Keystore: ${{ steps.signing.outputs.signed }}
+          EOF
+
+          echo "apk_size_bytes=$APK_SIZE_BYTES" >> "$GITHUB_OUTPUT"
+          echo "apk_size_human=$APK_SIZE_HUMAN" >> "$GITHUB_OUTPUT"
+          echo "apk_sha256=$APK_SHA256" >> "$GITHUB_OUTPUT"
+          echo "aab_size_bytes=$AAB_SIZE_BYTES" >> "$GITHUB_OUTPUT"
+          echo "aab_size_human=$AAB_SIZE_HUMAN" >> "$GITHUB_OUTPUT"
+          echo "aab_sha256=$AAB_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: kakumiro-online-tv-android-release
+          path: android-release/
+          retention-days: 90
+
+      - name: Publish GitHub Release (Direct Mobile APK + Play Console AAB)
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="android-build-${{ github.run_number }}-${{ github.run_attempt }}"
+          TITLE="Android APK & Play AAB Build ${{ github.run_number }}.${{ github.run_attempt }}"
+          SIGNING_NOTE=$([ "${{ steps.signing.outputs.signed }}" = "true" ] && echo "Signed with Play Console upload keystore" || echo "Unsigned release AAB (add ANDROID_KEYSTORE_* secrets to sign automatically in CI, or sign with jarsigner before Play Console upload)")
+          NOTES=$(printf '%s\n' \
+            "Automated Android build from commit \`${{ github.sha }}\`." \
+            "" \
+            "### Downloads" \
+            "- **Direct Mobile Testing APK**: \`app-debug.apk\` (${{ steps.validate.outputs.apk_size_human }}, SHA-256: \`${{ steps.validate.outputs.apk_sha256 }}\`)" \
+            "- **Google Play Console App Bundle**: \`app-release.aab\` (${{ steps.validate.outputs.aab_size_human }}, SHA-256: \`${{ steps.validate.outputs.aab_sha256 }}\`)" \
+            "- **AAB Signing**: ${SIGNING_NOTE}" \
+            "" \
+            "### Included Project Features" \
+            "- **Live TV, Visual Radio & Multi-Format Player**: HLS (\`.m3u8\`), MP4/WebM/MOV, MP3/AAC/Icecast audio, and web embeds with automatic stream probing/relay and live RTDB viewer counts." \
+            "- **Interactive Stream Chat & Personalization**: Live chat reactions, sender following, offline queue auto-sync, Favorites, Continue Watching, and Data Saver settings." \
+            "- **TV Guide, Native Reminders & Push Alerts**: Network-synced EPG schedule, Android \`KOTVReminderReceiver\` alarms, Web Push (VAPID), FCM closed-app push notifications, and Station Updates feed." \
+            "- **Movies, TV Archive, Podcasts, Breaking News & Local Artists**: Categorized VOD movies, catch-up archive, station news, and local artist profiles." \
+            "- **Admin Control Center & Cloud Storage Vault**: Live catalog management, video frame/thumbnail cutout studio, chunked Firestore \`vault://\` storage, public station documents, cloud backups, and Firebase health diagnostics." \
+            "- **Offline Resilience & PWA**: Offline-ready service worker caching, persistent Firestore local cache, and Capacitor Android native shell (\`com.kakumiro.onlinetv\`).")
+
+          ASSETS=(
+            "android-release/app-debug.apk#app-debug.apk"
+            "android-release/app-debug.apk.sha256#app-debug.apk.sha256"
+            "android-release/app-release.aab#app-release.aab"
+            "android-release/app-release.aab.sha256#app-release.aab.sha256"
+          )
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+          else
+            gh release create "$TAG" "${ASSETS[@]}" \
+              --title "$TITLE" \
+              --notes "$NOTES" \
+              --latest
+          fi
+
+          APK_URL="https://github.com/${{ github.repository }}/releases/latest/download/app-debug.apk"
+          AAB_URL="https://github.com/${{ github.repository }}/releases/latest/download/app-release.aab"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
+          echo "aab_url=$AAB_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Save compiled AAB and APK into android-release/ in source repository
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f android-release/app-debug.apk android-release/app-debug.apk.sha256 android-release/app-release.aab android-release/app-release.aab.sha256 android-release/BUILD_INFO.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(android): update app-release.aab and app-debug.apk [skip ci]"
+            git push
+          fi
+
+      - name: Write job summary
+        run: |
+          {
+            echo "## Android APK & Google Play AAB Published"
+            echo ""
+            echo "- **Commit**: \`${{ github.sha }}\`"
+            echo "- **Release Tag**: \`${{ steps.release.outputs.tag }}\`"
+            echo "- **Direct Mobile Testing APK URL**: ${{ steps.release.outputs.apk_url }}"
+            echo "- **Direct Play Console AAB URL**: ${{ steps.release.outputs.aab_url }}"
+            echo "- **APK SHA-256**: \`${{ steps.validate.outputs.apk_sha256 }}\`"
+            echo "- **AAB SHA-256**: \`${{ steps.validate.outputs.aab_sha256 }}\`"
+            echo "- **Source Folder Output**: \`android-release/app-release.aab\` and \`android-release/app-debug.apk\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,6 @@
+{
+  "name": "Kakumiro Online TV",
+  "description": "Live television, visual radio, interactive TV guide, and catch-up streaming for Kakumiro Online TV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

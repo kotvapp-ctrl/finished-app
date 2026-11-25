@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kakumiro Online TV</string>
+    <string name="title_activity_main">Kakumiro Online TV</string>
+    <string name="package_name">com.kakumiro.onlinetv</string>
+    <string name="custom_url_scheme">com.kakumiro.onlinetv</string>
+</resources>

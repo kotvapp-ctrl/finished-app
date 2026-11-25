@@ -1,0 +1,1219 @@
+{
+  "entities": {
+    "Channel": {
+      "title": "Broadcast Channel",
+      "description": "A live television or visual radio channel available on Kakumiro Online TV.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Television", "Radios"]
+        },
+        "subtitle": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "brand": {
+          "type": "string",
+          "enum": ["default", "nbs", "citizen", "sanyuka", "sport", "radio"]
+        },
+        "progress": {
+          "type": "number"
+        },
+        "program": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "streamUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "streamType": {
+          "type": "string",
+          "enum": ["auto", "hls", "media", "audio", "embed"]
+        },
+        "useRelayServer": {
+          "type": "boolean"
+        },
+        "iconUrl": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "type", "subtitle", "brand", "progress", "program"]
+    },
+    "GuideSlot": {
+      "title": "TV Guide Programme Slot",
+      "description": "Current and upcoming schedule entry for a broadcast channel.",
+      "type": "object",
+      "properties": {
+        "channelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "currentTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "currentTime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "nextTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "nextTime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["channelId", "currentTitle", "currentTime", "nextTitle", "nextTime"]
+    },
+    "HeroSlide": {
+      "title": "Hero Carousel Slide",
+      "description": "Featured photo or video slide shown on the Home hero carousel.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "kicker": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "badgeText": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "subtitle": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "channelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "imagePath": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "mediaMode": {
+          "type": "string",
+          "enum": ["photo", "video"]
+        },
+        "streamUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "streamType": {
+          "type": "string",
+          "enum": ["auto", "hls", "media", "audio", "embed"]
+        },
+        "useChannelStream": {
+          "type": "boolean"
+        },
+        "useRelayServer": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "kicker", "title", "subtitle", "channelId", "imagePath"]
+    },
+    "Movie": {
+      "title": "Movie or Series",
+      "description": "On-demand movie or series item in the Kakumiro Online TV catalog.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "format": {
+          "type": "string",
+          "enum": ["movie", "series"]
+        },
+        "genre": {
+          "type": "string",
+          "enum": [
+            "Action",
+            "Horror",
+            "Adventure",
+            "Bunyoro Films",
+            "Series",
+            "Thriller",
+            "Drama",
+            "Comedy"
+          ]
+        },
+        "year": {
+          "type": "string",
+          "maxLength": 12
+        },
+        "duration": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "posterPath": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "channelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "channelName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "streamUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "streamType": {
+          "type": "string",
+          "enum": ["auto", "hls", "media", "audio", "embed"]
+        },
+        "episodesCount": {
+          "type": "number"
+        },
+        "featured": {
+          "type": "boolean"
+        },
+        "useRelayServer": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "title", "format", "genre", "year", "duration", "description", "channelId", "channelName"]
+    },
+    "ArchiveItem": {
+      "title": "Catch-up Archive or Podcast Item",
+      "description": "Recorded broadcast catch-up programme or podcast episode.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "channelName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "channelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "duration": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "recordedAt": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "category": {
+          "type": "string",
+          "enum": ["archive", "podcast"]
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "thumbnailPath": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "mediaUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "streamType": {
+          "type": "string",
+          "enum": ["auto", "hls", "media", "audio", "embed"]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "title", "channelName", "channelId", "duration", "recordedAt", "category", "description"]
+    },
+    "PromoSettings": {
+      "title": "Hero Promo Settings",
+      "description": "Home hero promotional card configuration.",
+      "type": "object",
+      "properties": {
+        "badgeText": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "heading": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "mediaMode": {
+          "type": "string",
+          "enum": ["photo", "video"]
+        },
+        "imagePath": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "channelId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "streamUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "streamType": {
+          "type": "string",
+          "enum": ["auto", "hls", "media", "audio", "embed"]
+        },
+        "useChannelStream": {
+          "type": "boolean"
+        },
+        "autoplayStream": {
+          "type": "boolean"
+        },
+        "useRelayServer": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["badgeText", "heading", "description", "enabled"]
+    },
+    "AppSettings": {
+      "title": "Global App Settings",
+      "description": "Global feature toggles, hero carousel pacing, and announcement bar configuration.",
+      "type": "object",
+      "properties": {
+        "announcementEnabled": { "type": "boolean" },
+        "announcementText": { "type": "string", "maxLength": 280 },
+        "allowGuestPlayback": { "type": "boolean" },
+        "enableTvGuide": { "type": "boolean" },
+        "enableMovies": { "type": "boolean" },
+        "enableArchive": { "type": "boolean" },
+        "enablePodcasts": { "type": "boolean" },
+        "enableRadios": { "type": "boolean" },
+        "enableLauncherScreen": { "type": "boolean" },
+        "heroAutoplay": { "type": "boolean" },
+        "heroIntervalSec": { "type": "number" },
+        "autoTimeSync": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "announcementEnabled",
+        "announcementText",
+        "allowGuestPlayback",
+        "enableTvGuide",
+        "enableMovies",
+        "enableArchive",
+        "enablePodcasts",
+        "enableRadios",
+        "enableLauncherScreen",
+        "heroAutoplay",
+        "heroIntervalSec",
+        "autoTimeSync"
+      ]
+    },
+    "HomeSettings": {
+      "title": "Home Screen Layout & Editorial Config",
+      "description": "Admin-controlled Home screen section ordering, visibility, titles, featured channels, and station spotlight banner.",
+      "type": "object",
+      "properties": {
+        "sectionOrder": { "type": "array" },
+        "showHeroCarousel": { "type": "boolean" },
+        "heroCtaLabel": { "type": "string", "maxLength": 40 },
+        "showContinueWatching": { "type": "boolean" },
+        "continueWatchingTitle": { "type": "string", "maxLength": 80 },
+        "continueWatchingSubtitle": { "type": "string", "maxLength": 160 },
+        "showChannelsSection": { "type": "boolean" },
+        "channelsTitle": { "type": "string", "maxLength": 80 },
+        "channelsSubtitle": { "type": "string", "maxLength": 160 },
+        "channelsActionLabel": { "type": "string", "maxLength": 40 },
+        "channelsCount": { "type": "number" },
+        "featuredChannelIds": { "type": "array" },
+        "showMoviesSection": { "type": "boolean" },
+        "moviesTitle": { "type": "string", "maxLength": 80 },
+        "moviesSubtitle": { "type": "string", "maxLength": 160 },
+        "moviesActionLabel": { "type": "string", "maxLength": 40 },
+        "moviesCount": { "type": "number" },
+        "moviesFeaturedOnly": { "type": "boolean" },
+        "welcomeBannerEnabled": { "type": "boolean" },
+        "welcomeBannerKicker": { "type": "string", "maxLength": 50 },
+        "welcomeBannerTitle": { "type": "string", "maxLength": 120 },
+        "welcomeBannerBody": { "type": "string", "maxLength": 280 },
+        "welcomeBannerCtaLabel": { "type": "string", "maxLength": 40 },
+        "welcomeBannerChannelId": { "type": "string", "maxLength": 64 },
+        "showWatchCatchupRail": { "type": "boolean" },
+        "watchCatchupTitle": { "type": "string", "maxLength": 80 },
+        "tvArchiveAutoArtUrl": { "type": "string", "maxLength": 140000 },
+        "podcastAutoArtUrl": { "type": "string", "maxLength": 140000 },
+        "watchCatchupAutoArtUrl": { "type": "string", "maxLength": 140000 },
+        "movieAutoArtUrl": { "type": "string", "maxLength": 140000 },
+        "stationIconUrl": { "type": "string", "maxLength": 140000 },
+        "radioIconUrl": { "type": "string", "maxLength": 140000 },
+        "updatesIconUrl": { "type": "string", "maxLength": 140000 },
+        "newsIconUrl": { "type": "string", "maxLength": 140000 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "sectionOrder",
+        "showHeroCarousel",
+        "heroCtaLabel",
+        "showContinueWatching",
+        "continueWatchingTitle",
+        "continueWatchingSubtitle",
+        "showChannelsSection",
+        "channelsTitle",
+        "channelsSubtitle",
+        "channelsActionLabel",
+        "channelsCount",
+        "featuredChannelIds",
+        "showMoviesSection",
+        "moviesTitle",
+        "moviesSubtitle",
+        "moviesActionLabel",
+        "moviesCount",
+        "moviesFeaturedOnly",
+        "welcomeBannerEnabled",
+        "welcomeBannerKicker",
+        "welcomeBannerTitle",
+        "welcomeBannerBody",
+        "welcomeBannerCtaLabel",
+        "welcomeBannerChannelId"
+      ]
+    },
+    "ChatMessage": {
+      "title": "Live Stream Chat Message",
+      "description": "Viewer chat message scoped to an active channel stream key.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "channelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "streamKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 320
+        },
+        "senderId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 280
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "timestampMs": {
+          "type": "number"
+        },
+        "likes": {
+          "type": "number"
+        },
+        "replyTo": {
+          "type": "object"
+        },
+        "serverCreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "channelId",
+        "streamKey",
+        "senderId",
+        "senderName",
+        "text",
+        "createdAt",
+        "timestampMs",
+        "likes",
+        "serverCreatedAt"
+      ]
+    },
+    "UserPreferences": {
+      "title": "User Viewer Preferences",
+      "description": "Non-PII viewer preferences, favorites, reminders, and followed chat senders.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "plan": {
+          "type": "string",
+          "enum": ["Free", "Plus", "Family"]
+        },
+        "favorites": {
+          "type": "array"
+        },
+        "reminders": {
+          "type": "array"
+        },
+        "followedSenders": {
+          "type": "array"
+        },
+        "settings": {
+          "type": "object"
+        },
+        "continueWatching": {
+          "type": "array"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "plan", "favorites", "reminders", "followedSenders", "settings", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "User Private PII",
+      "description": "Isolated PII document storing user email and identifier.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "identifier": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "Admin Allowlist Record",
+      "description": "Trusted administrator UID record for Kakumiro Online TV.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "grantedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "grantedAt"]
+    },
+    "BroadcastAlert": {
+      "title": "Live Broadcast Alert",
+      "description": "Real-time news, sports, TV guide, or live stream notification published by the station admin.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["news", "sports", "tvGuide", "live"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 280
+        },
+        "channelId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "iconUrl": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "timestampMs": {
+          "type": "number"
+        },
+        "sentByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "serverCreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "category", "title", "body", "createdAt", "timestampMs", "sentByUid", "serverCreatedAt"]
+    },
+    "FcmSubscription": {
+      "title": "FCM Device Push Subscription",
+      "description": "Registered Firebase Cloud Messaging token and topic preferences for a verified viewer device.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "token": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 512
+        },
+        "topics": {
+          "type": "array"
+        },
+        "platform": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "webPushJson": {
+          "type": "string",
+          "maxLength": 1200
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "uid", "token", "topics", "platform", "updatedAt"]
+    },
+    "CloudFile": {
+      "title": "Cloud Storage Media & Document File",
+      "description": "Metadata and online URL for videos, images, audio, and documents stored in Firebase Cloud Storage or Firestore Vault.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "enum": ["video", "image", "audio", "document"]
+        },
+        "mimeType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "sizeBytes": {
+          "type": "number"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 650000
+        },
+        "storagePath": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "storageBackend": {
+          "type": "string",
+          "enum": ["firebase-storage", "firestore-vault", "external-url"]
+        },
+        "chunkCount": {
+          "type": "number"
+        },
+        "publicVisible": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "uploadedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "timestampMs": {
+          "type": "number"
+        },
+        "serverCreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "category", "mimeType", "sizeBytes", "url", "storageBackend", "uploadedByUid", "createdAt", "timestampMs", "serverCreatedAt"]
+    },
+    "CloudFileChunk": {
+      "title": "Cloud File Vault Chunk",
+      "description": "Base64 payload segment for files stored in Firestore Vault when Cloud Storage bucket is unavailable.",
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "number"
+        },
+        "data": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 650000
+        }
+      },
+      "required": ["index", "data"]
+    },
+    "BackupSnapshot": {
+      "title": "Database Backup Snapshot",
+      "description": "Point-in-time backup copy of all broadcast catalog, schedule, and app settings.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByEmail": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "timestampMs": {
+          "type": "number"
+        },
+        "sizeBytes": {
+          "type": "number"
+        },
+        "counts": {
+          "type": "object"
+        },
+        "storageUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "snapshotJson": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 800000
+        },
+        "serverCreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "label", "createdByUid", "createdByEmail", "createdAt", "timestampMs", "sizeBytes", "counts", "snapshotJson", "serverCreatedAt"]
+    },
+    "UserBackupSnapshot": {
+      "title": "Personal User Cloud Backup Snapshot",
+      "description": "Point-in-time online backup of a signed-in viewer's favorites, reminders, followed senders, playback settings, history, and offline library index.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "plan": { "type": "string", "enum": ["Free", "Plus", "Family"] },
+        "favorites": { "type": "array" },
+        "reminders": { "type": "array" },
+        "followedSenders": { "type": "array" },
+        "settings": { "type": "object" },
+        "continueWatching": { "type": "array" },
+        "offlineSavedTitles": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "timestampMs": { "type": "number" },
+        "sizeBytes": { "type": "number" },
+        "serverCreatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "label", "displayName", "plan", "favorites", "reminders", "followedSenders", "settings", "createdAt", "timestampMs", "sizeBytes", "serverCreatedAt"]
+    },
+    "UserCloudFile": {
+      "title": "Personal User Cloud File",
+      "description": "Private image, audio, video, document, or bookmark saved online by an authenticated user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "category": { "type": "string", "enum": ["video", "image", "audio", "document"] },
+        "mimeType": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "sizeBytes": { "type": "number" },
+        "url": { "type": "string", "minLength": 1, "maxLength": 650000 },
+        "storagePath": { "type": "string", "maxLength": 240 },
+        "storageBackend": { "type": "string", "enum": ["firebase-storage", "firestore-vault", "external-url"] },
+        "description": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "timestampMs": { "type": "number" },
+        "serverCreatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "name", "category", "mimeType", "sizeBytes", "url", "storageBackend", "createdAt", "timestampMs", "serverCreatedAt"]
+    },
+    "UserLoginEvent": {
+      "title": "User Login & Sign-Up Event",
+      "description": "Non-PII authentication event recorded in Firestore whenever a user signs in or creates an account.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "eventType": { "type": "string", "enum": ["login", "signup"] },
+        "provider": { "type": "string", "enum": ["google", "password"] },
+        "platform": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "timestampMs": { "type": "number" },
+        "serverCreatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "displayName", "eventType", "provider", "platform", "createdAt", "timestampMs", "serverCreatedAt"]
+    },
+    "NewsArticle": {
+      "title": "Written Breaking News Article",
+      "description": "Written journalism report published by station administrators for the Breaking News reader.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "headline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Breaking", "Politics", "Sports", "Business", "Community", "Entertainment"]
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "channelId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "featured": {
+          "type": "boolean"
+        },
+        "publishedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "timestampMs": {
+          "type": "number"
+        },
+        "sentByUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "serverCreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "headline", "summary", "body", "category", "author", "publishedAt", "timestampMs", "serverCreatedAt"]
+    },
+    "Artist": {
+      "title": "Featured Artist Profile",
+      "description": "Musician, choir, or performing artist profile featured in the More -> Artists section.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "stageGenre": {
+          "type": "string",
+          "enum": ["Afrobeat", "Gospel", "Kadongo Kamu", "Hip Hop & Rap", "Traditional", "RnB & Soul", "Dancehall"]
+        },
+        "origin": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "bio": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "latestRelease": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "photoUrl": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "mediaUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "streamType": {
+          "type": "string",
+          "enum": ["auto", "hls", "media", "audio", "embed"]
+        },
+        "channelId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "featured": {
+          "type": "boolean"
+        },
+        "timestampMs": {
+          "type": "number"
+        },
+        "sentByUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "serverCreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "stageGenre", "origin", "bio", "latestRelease", "timestampMs", "serverCreatedAt"]
+    },
+    "StationUpdate": {
+      "title": "Station Update Notification",
+      "description": "Real-time update feed entry published when admin adds or updates channels, news, artists, podcasts, radios, movies, TV guide, or control panel settings.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["admin", "news", "channel", "live", "radio", "artist", "podcast", "archive", "movie", "tvGuide", "sports"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "targetId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "channelId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "iconUrl": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "actionLabel": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "timestampMs": {
+          "type": "number"
+        },
+        "sentByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "serverCreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "category", "title", "summary", "createdAt", "timestampMs", "sentByUid", "serverCreatedAt"]
+    }
+  },
+  "firestore": {
+    "/channels/{channelId}": {
+      "schema": { "$ref": "#/entities/Channel" },
+      "description": "Live TV and visual radio channels."
+    },
+    "/guideSlots/{channelId}": {
+      "schema": { "$ref": "#/entities/GuideSlot" },
+      "description": "TV guide current and next programme slots."
+    },
+    "/heroSlides/{slideId}": {
+      "schema": { "$ref": "#/entities/HeroSlide" },
+      "description": "Hero carousel photo and video slides."
+    },
+    "/movies/{movieId}": {
+      "schema": { "$ref": "#/entities/Movie" },
+      "description": "Movies and series catalog."
+    },
+    "/archiveItems/{itemId}": {
+      "schema": { "$ref": "#/entities/ArchiveItem" },
+      "description": "Catch-up TV archive and podcast episodes."
+    },
+    "/settings/promo": {
+      "schema": { "$ref": "#/entities/PromoSettings" },
+      "description": "Home Hero Promo configuration document."
+    },
+    "/settings/appConfig": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Global application settings and feature flags."
+    },
+    "/settings/homeConfig": {
+      "schema": { "$ref": "#/entities/HomeSettings" },
+      "description": "Admin-controlled Home screen layout, visibility, headings, and channel ordering."
+    },
+    "/chatMessages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Live stream chat messages keyed by channelId and streamKey."
+    },
+    "/broadcastAlerts/{alertId}": {
+      "schema": { "$ref": "#/entities/BroadcastAlert" },
+      "description": "Real-time station news, sports, TV guide, and live broadcast alerts."
+    },
+    "/newsArticles/{articleId}": {
+      "schema": { "$ref": "#/entities/NewsArticle" },
+      "description": "Written breaking news articles and reports managed by station administrators."
+    },
+    "/artists/{artistId}": {
+      "schema": { "$ref": "#/entities/Artist" },
+      "description": "Musician and performing artist profiles managed by station administrators."
+    },
+    "/stationUpdates/{updateId}": {
+      "schema": { "$ref": "#/entities/StationUpdate" },
+      "description": "Real-time update feed entries across admin control panel, news, channels, radios, artists, podcasts, and media."
+    },
+    "/fcmSubscriptions/{subId}": {
+      "schema": { "$ref": "#/entities/FcmSubscription" },
+      "description": "FCM Web Push tokens for closed-app notification delivery."
+    },
+    "/cloudFiles/{fileId}": {
+      "schema": { "$ref": "#/entities/CloudFile" },
+      "description": "Uploaded videos, images, audio files, and documents."
+    },
+    "/cloudFiles/{fileId}/chunks/{chunkId}": {
+      "schema": { "$ref": "#/entities/CloudFileChunk" },
+      "description": "Chunked payload storage for uploaded files when Storage bucket is not yet enabled."
+    },
+    "/backups/{backupId}": {
+      "schema": { "$ref": "#/entities/BackupSnapshot" },
+      "description": "Admin-only point-in-time database backup snapshots."
+    },
+    "/userLogins/{loginId}": {
+      "schema": { "$ref": "#/entities/UserLoginEvent" },
+      "description": "Immutable authentication log of user sign-ins and account creations."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPreferences" },
+      "description": "Per-user non-PII preferences, favorites, reminders, and followed senders."
+    },
+    "/users/{userId}/private/info": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated private PII record for an authenticated user."
+    },
+    "/users/{userId}/backups/{backupId}": {
+      "schema": { "$ref": "#/entities/UserBackupSnapshot" },
+      "description": "Owner-isolated personal cloud backup snapshots."
+    },
+    "/users/{userId}/cloudFiles/{fileId}": {
+      "schema": { "$ref": "#/entities/UserCloudFile" },
+      "description": "Owner-isolated personal cloud storage files and media bookmarks."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Administrator role records."
+    }
+  }
+}

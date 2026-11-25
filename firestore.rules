@@ -1,0 +1,767 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Reusable Global Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == '97.1skyfm@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidStreamType(t) {
+      return t in ['auto', 'hls', 'media', 'audio', 'embed'];
+    }
+
+    function isOptionalString(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isBoundedStringList(arr, maxLen) {
+      return arr is list && arr.size() <= maxLen && (arr.size() == 0 || (arr[0] is string && arr[0].size() <= 160));
+    }
+
+    function isValidContinueWatchingItem(item) {
+      return item is map &&
+        item.keys().hasAll(['id', 'kind', 'channelId', 'channelName', 'brand', 'title', 'playedAtMs']) &&
+        item.keys().hasOnly(['id', 'kind', 'channelId', 'channelName', 'brand', 'title', 'subtitle', 'posterPath', 'overrideStreamUrl', 'overrideStreamType', 'playedAtMs']) &&
+        item.id is string && item.id.size() >= 1 && item.id.size() <= 160 &&
+        item.kind in ['movie', 'channel'] &&
+        isValidId(item.channelId) &&
+        item.channelName is string && item.channelName.size() <= 80 &&
+        item.brand in ['default', 'nbs', 'citizen', 'sanyuka', 'sport', 'radio'] &&
+        item.title is string && item.title.size() >= 1 && item.title.size() <= 140 &&
+        isOptionalString(item, 'subtitle', 160) &&
+        isOptionalString(item, 'posterPath', 1000) &&
+        isOptionalString(item, 'overrideStreamUrl', 1000) &&
+        (!('overrideStreamType' in item) || isValidStreamType(item.overrideStreamType)) &&
+        item.playedAtMs is number && item.playedAtMs > 0;
+    }
+
+    function isBoundedContinueWatchingList(arr) {
+      return arr is list && arr.size() <= 5 && (arr.size() == 0 || isValidContinueWatchingItem(arr[0]));
+    }
+
+    // --- Validation Blueprints (Anti-Update-Gap) ---
+    function isValidChannel(data) {
+      return data.keys().hasAll(['id', 'name', 'type', 'subtitle', 'brand', 'progress', 'program']) &&
+        data.keys().hasOnly(['id', 'name', 'type', 'subtitle', 'brand', 'progress', 'program', 'streamUrl', 'streamType', 'useRelayServer', 'iconUrl', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        data.type in ['Television', 'Radios'] &&
+        data.subtitle is string && data.subtitle.size() <= 120 &&
+        data.brand in ['default', 'nbs', 'citizen', 'sanyuka', 'sport', 'radio'] &&
+        data.progress is number && data.progress >= 0 && data.progress <= 100 &&
+        data.program is string && data.program.size() <= 140 &&
+        isOptionalString(data, 'streamUrl', 1000) &&
+        (!('streamType' in data) || isValidStreamType(data.streamType)) &&
+        (!('useRelayServer' in data) || data.useRelayServer is bool) &&
+        isOptionalString(data, 'iconUrl', 200000) &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidGuideSlot(data) {
+      return data.keys().hasAll(['channelId', 'currentTitle', 'currentTime', 'nextTitle', 'nextTime']) &&
+        data.keys().hasOnly(['channelId', 'currentTitle', 'currentTime', 'nextTitle', 'nextTime', 'updatedAt']) &&
+        isValidId(data.channelId) &&
+        data.currentTitle is string && data.currentTitle.size() >= 1 && data.currentTitle.size() <= 140 &&
+        data.currentTime is string && data.currentTime.size() >= 1 && data.currentTime.size() <= 60 &&
+        data.nextTitle is string && data.nextTitle.size() >= 1 && data.nextTitle.size() <= 140 &&
+        data.nextTime is string && data.nextTime.size() >= 1 && data.nextTime.size() <= 60 &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidHeroSlide(data) {
+      return data.keys().hasAll(['id', 'kicker', 'title', 'subtitle', 'channelId', 'imagePath']) &&
+        data.keys().hasOnly(['id', 'kicker', 'title', 'badgeText', 'subtitle', 'channelId', 'imagePath', 'mediaMode', 'streamUrl', 'streamType', 'useChannelStream', 'useRelayServer', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.kicker is string && data.kicker.size() <= 60 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        isOptionalString(data, 'badgeText', 40) &&
+        data.subtitle is string && data.subtitle.size() <= 240 &&
+        isValidId(data.channelId) &&
+        data.imagePath is string && data.imagePath.size() <= 200000 &&
+        (!('mediaMode' in data) || data.mediaMode in ['photo', 'video']) &&
+        isOptionalString(data, 'streamUrl', 1000) &&
+        (!('streamType' in data) || isValidStreamType(data.streamType)) &&
+        (!('useChannelStream' in data) || data.useChannelStream is bool) &&
+        (!('useRelayServer' in data) || data.useRelayServer is bool) &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidMovie(data) {
+      return data.keys().hasAll(['id', 'title', 'format', 'genre', 'year', 'duration', 'description', 'channelId', 'channelName']) &&
+        data.keys().hasOnly(['id', 'title', 'format', 'genre', 'year', 'duration', 'description', 'posterPath', 'channelId', 'channelName', 'streamUrl', 'streamType', 'episodesCount', 'featured', 'useRelayServer', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.format in ['movie', 'series'] &&
+        data.genre in ['Action', 'Horror', 'Adventure', 'Bunyoro Films', 'Series', 'Thriller', 'Drama', 'Comedy'] &&
+        data.year is string && data.year.size() <= 12 &&
+        data.duration is string && data.duration.size() <= 40 &&
+        data.description is string && data.description.size() <= 600 &&
+        isOptionalString(data, 'posterPath', 200000) &&
+        isValidId(data.channelId) &&
+        data.channelName is string && data.channelName.size() <= 80 &&
+        isOptionalString(data, 'streamUrl', 1000) &&
+        (!('streamType' in data) || isValidStreamType(data.streamType)) &&
+        (!('episodesCount' in data) || (data.episodesCount is number && data.episodesCount >= 0 && data.episodesCount <= 2000)) &&
+        (!('featured' in data) || data.featured is bool) &&
+        (!('useRelayServer' in data) || data.useRelayServer is bool) &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidArchiveItem(data) {
+      return data.keys().hasAll(['id', 'title', 'channelName', 'channelId', 'duration', 'recordedAt', 'category', 'description']) &&
+        data.keys().hasOnly(['id', 'title', 'channelName', 'channelId', 'duration', 'recordedAt', 'category', 'description', 'thumbnailPath', 'mediaUrl', 'streamType', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.channelName is string && data.channelName.size() <= 80 &&
+        isValidId(data.channelId) &&
+        data.duration is string && data.duration.size() <= 40 &&
+        data.recordedAt is string && data.recordedAt.size() <= 60 &&
+        data.category in ['archive', 'podcast'] &&
+        data.description is string && data.description.size() <= 600 &&
+        isOptionalString(data, 'thumbnailPath', 200000) &&
+        isOptionalString(data, 'mediaUrl', 1000) &&
+        (!('streamType' in data) || isValidStreamType(data.streamType)) &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidPromo(data) {
+      return data.keys().hasAll(['badgeText', 'heading', 'description', 'enabled']) &&
+        data.keys().hasOnly(['badgeText', 'heading', 'description', 'enabled', 'mediaMode', 'imagePath', 'channelId', 'streamUrl', 'streamType', 'useChannelStream', 'autoplayStream', 'useRelayServer', 'updatedAt']) &&
+        data.badgeText is string && data.badgeText.size() <= 50 &&
+        data.heading is string && data.heading.size() <= 140 &&
+        data.description is string && data.description.size() <= 300 &&
+        data.enabled is bool &&
+        (!('mediaMode' in data) || data.mediaMode in ['photo', 'video']) &&
+        isOptionalString(data, 'imagePath', 200000) &&
+        isOptionalString(data, 'channelId', 64) &&
+        isOptionalString(data, 'streamUrl', 1000) &&
+        (!('streamType' in data) || isValidStreamType(data.streamType)) &&
+        (!('useChannelStream' in data) || data.useChannelStream is bool) &&
+        (!('autoplayStream' in data) || data.autoplayStream is bool) &&
+        (!('useRelayServer' in data) || data.useRelayServer is bool) &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidAppConfig(data) {
+      return data.keys().hasAll(['announcementEnabled', 'announcementText', 'allowGuestPlayback', 'enableTvGuide', 'enableMovies', 'enableArchive', 'enablePodcasts', 'enableRadios', 'enableLauncherScreen', 'heroAutoplay', 'heroIntervalSec', 'autoTimeSync']) &&
+        data.keys().hasOnly(['announcementEnabled', 'announcementText', 'allowGuestPlayback', 'enableTvGuide', 'enableMovies', 'enableArchive', 'enablePodcasts', 'enableRadios', 'enableLauncherScreen', 'heroAutoplay', 'heroIntervalSec', 'autoTimeSync', 'updatedAt']) &&
+        data.announcementEnabled is bool &&
+        data.announcementText is string && data.announcementText.size() <= 280 &&
+        data.allowGuestPlayback is bool &&
+        data.enableTvGuide is bool &&
+        data.enableMovies is bool &&
+        data.enableArchive is bool &&
+        data.enablePodcasts is bool &&
+        data.enableRadios is bool &&
+        data.enableLauncherScreen is bool &&
+        data.heroAutoplay is bool &&
+        data.heroIntervalSec is number && data.heroIntervalSec >= 3 && data.heroIntervalSec <= 60 &&
+        data.autoTimeSync is bool &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidHomeConfig(data) {
+      return data.keys().hasAll(['sectionOrder', 'showHeroCarousel', 'heroCtaLabel', 'showContinueWatching', 'continueWatchingTitle', 'continueWatchingSubtitle', 'showChannelsSection', 'channelsTitle', 'channelsSubtitle', 'channelsActionLabel', 'channelsCount', 'featuredChannelIds', 'showMoviesSection', 'moviesTitle', 'moviesSubtitle', 'moviesActionLabel', 'moviesCount', 'moviesFeaturedOnly', 'welcomeBannerEnabled', 'welcomeBannerKicker', 'welcomeBannerTitle', 'welcomeBannerBody', 'welcomeBannerCtaLabel', 'welcomeBannerChannelId']) &&
+        data.keys().hasOnly(['sectionOrder', 'showHeroCarousel', 'heroCtaLabel', 'showContinueWatching', 'continueWatchingTitle', 'continueWatchingSubtitle', 'showChannelsSection', 'channelsTitle', 'channelsSubtitle', 'channelsActionLabel', 'channelsCount', 'featuredChannelIds', 'showMoviesSection', 'moviesTitle', 'moviesSubtitle', 'moviesActionLabel', 'moviesCount', 'moviesFeaturedOnly', 'welcomeBannerEnabled', 'welcomeBannerKicker', 'welcomeBannerTitle', 'welcomeBannerBody', 'welcomeBannerCtaLabel', 'welcomeBannerChannelId', 'showWatchCatchupRail', 'watchCatchupTitle', 'tvArchiveAutoArtUrl', 'podcastAutoArtUrl', 'watchCatchupAutoArtUrl', 'movieAutoArtUrl', 'stationIconUrl', 'radioIconUrl', 'updatesIconUrl', 'newsIconUrl', 'updatedAt']) &&
+        data.sectionOrder is list && data.sectionOrder.size() >= 1 && data.sectionOrder.size() <= 4 && data.sectionOrder.hasOnly(['spotlight', 'continueWatching', 'channels', 'movies']) &&
+        data.showHeroCarousel is bool &&
+        data.heroCtaLabel is string && data.heroCtaLabel.size() <= 40 &&
+        data.showContinueWatching is bool &&
+        data.continueWatchingTitle is string && data.continueWatchingTitle.size() <= 80 &&
+        data.continueWatchingSubtitle is string && data.continueWatchingSubtitle.size() <= 160 &&
+        data.showChannelsSection is bool &&
+        data.channelsTitle is string && data.channelsTitle.size() <= 80 &&
+        data.channelsSubtitle is string && data.channelsSubtitle.size() <= 160 &&
+        data.channelsActionLabel is string && data.channelsActionLabel.size() <= 40 &&
+        data.channelsCount is number && data.channelsCount >= 1 && data.channelsCount <= 24 &&
+        isBoundedStringList(data.featuredChannelIds, 24) &&
+        data.showMoviesSection is bool &&
+        data.moviesTitle is string && data.moviesTitle.size() <= 80 &&
+        data.moviesSubtitle is string && data.moviesSubtitle.size() <= 160 &&
+        data.moviesActionLabel is string && data.moviesActionLabel.size() <= 40 &&
+        data.moviesCount is number && data.moviesCount >= 1 && data.moviesCount <= 24 &&
+        data.moviesFeaturedOnly is bool &&
+        data.welcomeBannerEnabled is bool &&
+        data.welcomeBannerKicker is string && data.welcomeBannerKicker.size() <= 50 &&
+        data.welcomeBannerTitle is string && data.welcomeBannerTitle.size() <= 120 &&
+        data.welcomeBannerBody is string && data.welcomeBannerBody.size() <= 280 &&
+        data.welcomeBannerCtaLabel is string && data.welcomeBannerCtaLabel.size() <= 40 &&
+        data.welcomeBannerChannelId is string && data.welcomeBannerChannelId.size() <= 64 &&
+        (!('showWatchCatchupRail' in data) || data.showWatchCatchupRail is bool) &&
+        isOptionalString(data, 'watchCatchupTitle', 80) &&
+        isOptionalString(data, 'tvArchiveAutoArtUrl', 140000) &&
+        isOptionalString(data, 'podcastAutoArtUrl', 140000) &&
+        isOptionalString(data, 'watchCatchupAutoArtUrl', 140000) &&
+        isOptionalString(data, 'movieAutoArtUrl', 140000) &&
+        isOptionalString(data, 'stationIconUrl', 140000) &&
+        isOptionalString(data, 'radioIconUrl', 140000) &&
+        isOptionalString(data, 'updatesIconUrl', 140000) &&
+        isOptionalString(data, 'newsIconUrl', 140000) &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidReplyTo(reply) {
+      return reply is map &&
+        reply.keys().hasAll(['messageId', 'senderName', 'excerpt']) &&
+        reply.keys().hasOnly(['messageId', 'senderName', 'excerpt']) &&
+        reply.messageId is string && reply.messageId.size() >= 1 && reply.messageId.size() <= 64 &&
+        reply.senderName is string && reply.senderName.size() >= 1 && reply.senderName.size() <= 60 &&
+        reply.excerpt is string && reply.excerpt.size() <= 120;
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['id', 'channelId', 'streamKey', 'senderId', 'senderName', 'text', 'createdAt', 'timestampMs', 'likes', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'channelId', 'streamKey', 'senderId', 'senderName', 'text', 'createdAt', 'timestampMs', 'likes', 'replyTo', 'serverCreatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.channelId) &&
+        data.streamKey is string && data.streamKey.size() >= 1 && data.streamKey.size() <= 320 &&
+        isValidId(data.senderId) &&
+        data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
+        data.text is string && data.text.size() >= 1 && data.text.size() <= 280 &&
+        data.createdAt is string && data.createdAt.size() <= 40 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        data.likes is number && data.likes >= 0 && data.likes <= 1000000 &&
+        data.serverCreatedAt is timestamp &&
+        (!('replyTo' in data) || isValidReplyTo(data.replyTo));
+    }
+
+    function isValidPlaybackSettings(s) {
+      return s is map &&
+        s.keys().hasAll(['autoplay', 'dataSaver', 'rememberLastChannel']) &&
+        s.keys().hasOnly(['autoplay', 'dataSaver', 'rememberLastChannel']) &&
+        s.autoplay is bool &&
+        s.dataSaver is bool &&
+        s.rememberLastChannel is bool;
+    }
+
+    function isValidUserPreferences(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'plan', 'favorites', 'reminders', 'followedSenders', 'settings', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'plan', 'favorites', 'reminders', 'followedSenders', 'settings', 'continueWatching', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+        data.plan in ['Free', 'Plus', 'Family'] &&
+        isBoundedStringList(data.favorites, 100) &&
+        isBoundedStringList(data.reminders, 200) &&
+        isBoundedStringList(data.followedSenders, 200) &&
+        isValidPlaybackSettings(data.settings) &&
+        (!('continueWatching' in data) || isBoundedContinueWatchingList(data.continueWatching)) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'identifier', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        isOptionalString(data, 'identifier', 160) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserBackupSnapshot(data) {
+      return data.keys().hasAll(['id', 'uid', 'label', 'displayName', 'plan', 'favorites', 'reminders', 'followedSenders', 'settings', 'createdAt', 'timestampMs', 'sizeBytes', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'uid', 'label', 'displayName', 'plan', 'favorites', 'reminders', 'followedSenders', 'settings', 'continueWatching', 'offlineSavedTitles', 'createdAt', 'timestampMs', 'sizeBytes', 'serverCreatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.uid) &&
+        data.label is string && data.label.size() >= 1 && data.label.size() <= 120 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+        data.plan in ['Free', 'Plus', 'Family'] &&
+        isBoundedStringList(data.favorites, 100) &&
+        isBoundedStringList(data.reminders, 200) &&
+        isBoundedStringList(data.followedSenders, 200) &&
+        isValidPlaybackSettings(data.settings) &&
+        (!('continueWatching' in data) || isBoundedContinueWatchingList(data.continueWatching)) &&
+        (!('offlineSavedTitles' in data) || isBoundedStringList(data.offlineSavedTitles, 100)) &&
+        data.createdAt is string && data.createdAt.size() <= 60 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        data.sizeBytes is number && data.sizeBytes >= 2 && data.sizeBytes <= 5000000 &&
+        data.serverCreatedAt is timestamp;
+    }
+
+    function isValidUserCloudFile(data) {
+      return data.keys().hasAll(['id', 'uid', 'name', 'category', 'mimeType', 'sizeBytes', 'url', 'storageBackend', 'createdAt', 'timestampMs', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'uid', 'name', 'category', 'mimeType', 'sizeBytes', 'url', 'storagePath', 'storageBackend', 'description', 'createdAt', 'timestampMs', 'serverCreatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.uid) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        data.category in ['video', 'image', 'audio', 'document'] &&
+        data.mimeType is string && data.mimeType.size() >= 1 && data.mimeType.size() <= 120 &&
+        data.sizeBytes is number && data.sizeBytes >= 0 && data.sizeBytes <= 5368709120 &&
+        data.url is string && data.url.size() >= 1 && data.url.size() <= 650000 &&
+        isOptionalString(data, 'storagePath', 240) &&
+        data.storageBackend in ['firebase-storage', 'firestore-vault', 'external-url'] &&
+        isOptionalString(data, 'description', 400) &&
+        data.createdAt is string && data.createdAt.size() <= 60 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        data.serverCreatedAt is timestamp;
+    }
+
+    function isValidUserLoginEvent(data) {
+      return data.keys().hasAll(['id', 'uid', 'displayName', 'eventType', 'provider', 'platform', 'createdAt', 'timestampMs', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'uid', 'displayName', 'eventType', 'provider', 'platform', 'createdAt', 'timestampMs', 'serverCreatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.uid) &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+        data.eventType in ['login', 'signup'] &&
+        data.provider in ['google', 'password'] &&
+        data.platform is string && data.platform.size() >= 1 && data.platform.size() <= 40 &&
+        data.createdAt is string && data.createdAt.size() <= 60 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        data.serverCreatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'email', 'grantedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'grantedAt']) &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.grantedAt is timestamp;
+    }
+
+    function isValidBroadcastAlert(data) {
+      return data.keys().hasAll(['id', 'category', 'title', 'body', 'createdAt', 'timestampMs', 'sentByUid', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'category', 'title', 'body', 'channelId', 'iconUrl', 'createdAt', 'timestampMs', 'sentByUid', 'serverCreatedAt']) &&
+        isValidId(data.id) &&
+        data.category in ['news', 'sports', 'tvGuide', 'live'] &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+        data.body is string && data.body.size() >= 1 && data.body.size() <= 280 &&
+        isOptionalString(data, 'channelId', 64) &&
+        isOptionalString(data, 'iconUrl', 200000) &&
+        data.createdAt is string && data.createdAt.size() <= 40 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        isValidId(data.sentByUid) &&
+        data.serverCreatedAt is timestamp;
+    }
+
+    function isValidNewsArticle(data) {
+      return data.keys().hasAll(['id', 'headline', 'summary', 'body', 'category', 'author', 'publishedAt', 'timestampMs', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'headline', 'summary', 'body', 'category', 'author', 'imageUrl', 'channelId', 'featured', 'publishedAt', 'timestampMs', 'sentByUid', 'serverCreatedAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.headline is string && data.headline.size() >= 1 && data.headline.size() <= 180 &&
+        data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 400 &&
+        data.body is string && data.body.size() >= 1 && data.body.size() <= 20000 &&
+        data.category in ['Breaking', 'Politics', 'Sports', 'Business', 'Community', 'Entertainment'] &&
+        data.author is string && data.author.size() >= 1 && data.author.size() <= 80 &&
+        isOptionalString(data, 'imageUrl', 200000) &&
+        isOptionalString(data, 'channelId', 64) &&
+        (!('featured' in data) || data.featured is bool) &&
+        data.publishedAt is string && data.publishedAt.size() >= 1 && data.publishedAt.size() <= 60 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        (!('sentByUid' in data) || isValidId(data.sentByUid)) &&
+        data.serverCreatedAt is timestamp &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidArtist(data) {
+      return data.keys().hasAll(['id', 'name', 'stageGenre', 'origin', 'bio', 'latestRelease', 'timestampMs', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'stageGenre', 'origin', 'bio', 'latestRelease', 'photoUrl', 'mediaUrl', 'streamType', 'channelId', 'featured', 'timestampMs', 'sentByUid', 'serverCreatedAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.stageGenre in ['Afrobeat', 'Gospel', 'Kadongo Kamu', 'Hip Hop & Rap', 'Traditional', 'RnB & Soul', 'Dancehall'] &&
+        data.origin is string && data.origin.size() >= 1 && data.origin.size() <= 100 &&
+        data.bio is string && data.bio.size() >= 1 && data.bio.size() <= 2000 &&
+        data.latestRelease is string && data.latestRelease.size() >= 1 && data.latestRelease.size() <= 140 &&
+        isOptionalString(data, 'photoUrl', 200000) &&
+        isOptionalString(data, 'mediaUrl', 1000) &&
+        (!('streamType' in data) || isValidStreamType(data.streamType)) &&
+        isOptionalString(data, 'channelId', 64) &&
+        (!('featured' in data) || data.featured is bool) &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        (!('sentByUid' in data) || isValidId(data.sentByUid)) &&
+        data.serverCreatedAt is timestamp &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidStationUpdate(data) {
+      return data.keys().hasAll(['id', 'category', 'title', 'summary', 'createdAt', 'timestampMs', 'sentByUid', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'category', 'title', 'summary', 'targetId', 'channelId', 'iconUrl', 'actionLabel', 'createdAt', 'timestampMs', 'sentByUid', 'serverCreatedAt']) &&
+        isValidId(data.id) &&
+        data.category in ['admin', 'news', 'channel', 'live', 'radio', 'artist', 'podcast', 'archive', 'movie', 'tvGuide', 'sports'] &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 300 &&
+        isOptionalString(data, 'targetId', 64) &&
+        isOptionalString(data, 'channelId', 64) &&
+        isOptionalString(data, 'iconUrl', 200000) &&
+        isOptionalString(data, 'actionLabel', 40) &&
+        data.createdAt is string && data.createdAt.size() <= 40 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        isValidId(data.sentByUid) &&
+        data.serverCreatedAt is timestamp;
+    }
+
+    function isValidFcmSubscription(data) {
+      return data.keys().hasAll(['id', 'uid', 'token', 'topics', 'platform', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'uid', 'token', 'topics', 'platform', 'webPushJson', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.uid) &&
+        data.token is string && data.token.size() >= 10 && data.token.size() <= 512 &&
+        isBoundedStringList(data.topics, 10) &&
+        data.platform is string && data.platform.size() >= 1 && data.platform.size() <= 40 &&
+        isOptionalString(data, 'webPushJson', 1200) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCloudFile(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'mimeType', 'sizeBytes', 'url', 'storageBackend', 'uploadedByUid', 'createdAt', 'timestampMs', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'category', 'mimeType', 'sizeBytes', 'url', 'storagePath', 'storageBackend', 'chunkCount', 'publicVisible', 'description', 'uploadedByUid', 'createdAt', 'timestampMs', 'serverCreatedAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        data.category in ['video', 'image', 'audio', 'document'] &&
+        data.mimeType is string && data.mimeType.size() >= 1 && data.mimeType.size() <= 120 &&
+        data.sizeBytes is number && data.sizeBytes >= 0 && data.sizeBytes <= 5368709120 &&
+        data.url is string && data.url.size() >= 1 && data.url.size() <= 650000 &&
+        isOptionalString(data, 'storagePath', 240) &&
+        data.storageBackend in ['firebase-storage', 'firestore-vault', 'external-url'] &&
+        (!('chunkCount' in data) || (data.chunkCount is number && data.chunkCount >= 0 && data.chunkCount <= 20)) &&
+        (!('publicVisible' in data) || data.publicVisible is bool) &&
+        isOptionalString(data, 'description', 400) &&
+        isValidId(data.uploadedByUid) &&
+        data.createdAt is string && data.createdAt.size() <= 60 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        data.serverCreatedAt is timestamp;
+    }
+
+    function isValidCloudFileChunk(data) {
+      return data.keys().hasAll(['index', 'data']) &&
+        data.keys().hasOnly(['index', 'data']) &&
+        data.index is number && data.index >= 0 && data.index <= 20 &&
+        data.data is string && data.data.size() >= 1 && data.data.size() <= 650000;
+    }
+
+    function isValidBackupCounts(c) {
+      return c is map &&
+        c.keys().hasAll(['channels', 'guideSlots', 'heroSlides', 'movies', 'archiveItems', 'alerts']) &&
+        c.keys().hasOnly(['channels', 'guideSlots', 'heroSlides', 'movies', 'archiveItems', 'alerts']) &&
+        c.channels is number && c.channels >= 0 &&
+        c.guideSlots is number && c.guideSlots >= 0 &&
+        c.heroSlides is number && c.heroSlides >= 0 &&
+        c.movies is number && c.movies >= 0 &&
+        c.archiveItems is number && c.archiveItems >= 0 &&
+        c.alerts is number && c.alerts >= 0;
+    }
+
+    function isValidBackupSnapshot(data) {
+      return data.keys().hasAll(['id', 'label', 'createdByUid', 'createdByEmail', 'createdAt', 'timestampMs', 'sizeBytes', 'counts', 'snapshotJson', 'serverCreatedAt']) &&
+        data.keys().hasOnly(['id', 'label', 'createdByUid', 'createdByEmail', 'createdAt', 'timestampMs', 'sizeBytes', 'counts', 'storageUrl', 'snapshotJson', 'serverCreatedAt']) &&
+        isValidId(data.id) &&
+        data.label is string && data.label.size() >= 1 && data.label.size() <= 140 &&
+        isValidId(data.createdByUid) &&
+        data.createdByEmail is string && data.createdByEmail.size() <= 160 &&
+        data.createdAt is string && data.createdAt.size() <= 60 &&
+        data.timestampMs is number && data.timestampMs > 0 &&
+        data.sizeBytes is number && data.sizeBytes >= 2 && data.sizeBytes <= 5000000 &&
+        isValidBackupCounts(data.counts) &&
+        isOptionalString(data, 'storageUrl', 1000) &&
+        data.snapshotJson is string && data.snapshotJson.size() >= 2 && data.snapshotJson.size() <= 800000 &&
+        data.serverCreatedAt is timestamp;
+    }
+
+    // --- Boot Connectivity Check ---
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // --- Public Broadcast Catalog (Admin-Managed) ---
+    match /channels/{channelId} {
+      allow get: if isValidId(channelId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(channelId) && isValidChannel(incoming()) && incoming().id == channelId && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow update: if isSignedIn() && isValidId(channelId) && isValidChannel(incoming()) && incoming().id == existing().id && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isValidId(channelId) && isAdmin();
+    }
+
+    match /guideSlots/{channelId} {
+      allow get: if isValidId(channelId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(channelId) && isValidGuideSlot(incoming()) && incoming().channelId == channelId && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow update: if isSignedIn() && isValidId(channelId) && isValidGuideSlot(incoming()) && incoming().channelId == existing().channelId && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isValidId(channelId) && isAdmin();
+    }
+
+    match /heroSlides/{slideId} {
+      allow get: if isValidId(slideId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(slideId) && isValidHeroSlide(incoming()) && incoming().id == slideId && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow update: if isSignedIn() && isValidId(slideId) && isValidHeroSlide(incoming()) && incoming().id == existing().id && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isValidId(slideId) && isAdmin();
+    }
+
+    match /movies/{movieId} {
+      allow get: if isValidId(movieId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(movieId) && isValidMovie(incoming()) && incoming().id == movieId && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow update: if isSignedIn() && isValidId(movieId) && isValidMovie(incoming()) && incoming().id == existing().id && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isValidId(movieId) && isAdmin();
+    }
+
+    match /archiveItems/{itemId} {
+      allow get: if isValidId(itemId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(itemId) && isValidArchiveItem(incoming()) && incoming().id == itemId && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow update: if isSignedIn() && isValidId(itemId) && isValidArchiveItem(incoming()) && incoming().id == existing().id && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isValidId(itemId) && isAdmin();
+    }
+
+    match /settings/promo {
+      allow get: if true;
+      allow create, update: if isSignedIn() && isValidPromo(incoming()) && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    match /settings/appConfig {
+      allow get: if true;
+      allow create, update: if isSignedIn() && isValidAppConfig(incoming()) && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    match /settings/homeConfig {
+      allow get: if true;
+      allow create, update: if isSignedIn() && isValidHomeConfig(incoming()) && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    // --- Cloud Storage File Registry & Vault Chunks ---
+    match /cloudFiles/{fileId} {
+      allow get: if isValidId(fileId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(fileId) && isValidCloudFile(incoming()) && incoming().id == fileId && incoming().uploadedByUid == request.auth.uid && incoming().serverCreatedAt == request.time && isAdmin();
+      allow update: if isSignedIn() && isValidId(fileId) && isValidCloudFile(incoming()) && incoming().id == existing().id && incoming().uploadedByUid == existing().uploadedByUid && incoming().serverCreatedAt == existing().serverCreatedAt && isAdmin();
+      allow delete: if isSignedIn() && isValidId(fileId) && isAdmin();
+
+      match /chunks/{chunkId} {
+        allow get: if isValidId(fileId) && isValidId(chunkId);
+        allow list: if isValidId(fileId);
+        allow create, update: if isSignedIn() && isValidId(fileId) && isValidId(chunkId) && isValidCloudFileChunk(incoming()) && isAdmin();
+        allow delete: if isSignedIn() && isValidId(fileId) && isValidId(chunkId) && isAdmin();
+      }
+    }
+
+    // --- Admin-Only Database Backup Snapshots ---
+    match /backups/{backupId} {
+      allow get: if isSignedIn() && isValidId(backupId) && isAdmin();
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn() && isValidId(backupId) && isValidBackupSnapshot(incoming()) && incoming().id == backupId && incoming().createdByUid == request.auth.uid && incoming().serverCreatedAt == request.time && isAdmin();
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(backupId) && isAdmin();
+    }
+
+    // --- Immutable User Login & Sign-Up Audit Events ---
+    match /userLogins/{loginId} {
+      allow get: if isSignedIn() && isValidId(loginId) && ((isVerifiedUser() && existing().uid == request.auth.uid) || isAdmin());
+      allow list: if isSignedIn() && (isAdmin() || (isVerifiedUser() && resource.data.uid == request.auth.uid));
+      allow create: if isVerifiedUser() &&
+        isValidId(loginId) &&
+        isValidUserLoginEvent(incoming()) &&
+        incoming().id == loginId &&
+        incoming().uid == request.auth.uid &&
+        incoming().serverCreatedAt == request.time;
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(loginId) && isAdmin();
+    }
+
+    // --- Live Stream Chat ---
+    match /chatMessages/{messageId} {
+      allow get: if isValidId(messageId);
+      allow list: if true;
+      allow create: if isVerifiedUser() &&
+        isValidId(messageId) &&
+        isValidChatMessage(incoming()) &&
+        incoming().id == messageId &&
+        incoming().senderId == request.auth.uid &&
+        incoming().likes == 0 &&
+        incoming().serverCreatedAt == request.time &&
+        exists(/databases/$(database)/documents/channels/$(incoming().channelId));
+      allow update: if isVerifiedUser() &&
+        isValidId(messageId) &&
+        isValidChatMessage(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().channelId == existing().channelId &&
+        incoming().streamKey == existing().streamKey &&
+        incoming().senderId == existing().senderId &&
+        incoming().serverCreatedAt == existing().serverCreatedAt && (
+          isAdmin() ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['likes']) &&
+            (incoming().likes == existing().likes + 1 || incoming().likes == existing().likes - 1)
+          )
+        );
+      allow delete: if isSignedIn() && isValidId(messageId) && (isAdmin() || (isVerifiedUser() && existing().senderId == request.auth.uid));
+    }
+
+    // --- User Preferences, Isolated PII, Personal Backups & Personal Cloud Files ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUserPreferences(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        isOwner(userId);
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUserPreferences(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'plan', 'favorites', 'reminders', 'followedSenders', 'settings', 'continueWatching', 'updatedAt'])
+          )
+        );
+      allow delete: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+
+      match /private/info {
+        allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+        allow list: if false;
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidUserPrivateInfo(incoming()) &&
+          incoming().uid == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isOwner(userId);
+        allow update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidUserPrivateInfo(incoming()) &&
+          incoming().uid == existing().uid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time && (
+            isAdmin() ||
+            (
+              isOwner(userId) &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['email', 'identifier', 'updatedAt'])
+            )
+          );
+        allow delete: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /backups/{backupId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(backupId) && (isOwner(userId) || isAdmin());
+        allow list: if isSignedIn() && isValidId(userId) && ((isOwner(userId) && resource.data.uid == request.auth.uid) || isAdmin());
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(backupId) &&
+          isValidUserBackupSnapshot(incoming()) &&
+          incoming().id == backupId &&
+          incoming().uid == request.auth.uid &&
+          incoming().serverCreatedAt == request.time &&
+          isOwner(userId);
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(backupId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /cloudFiles/{fileId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(fileId) && (isOwner(userId) || isAdmin());
+        allow list: if isSignedIn() && isValidId(userId) && ((isOwner(userId) && resource.data.uid == request.auth.uid) || isAdmin());
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(fileId) &&
+          isValidUserCloudFile(incoming()) &&
+          incoming().id == fileId &&
+          incoming().uid == request.auth.uid &&
+          incoming().serverCreatedAt == request.time &&
+          isOwner(userId);
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(fileId) && (isOwner(userId) || isAdmin());
+      }
+    }
+
+    // --- Live Broadcast Alerts (News, Sports, TV Guide, Live) ---
+    match /broadcastAlerts/{alertId} {
+      allow get: if isValidId(alertId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(alertId) && isValidBroadcastAlert(incoming()) && incoming().id == alertId && incoming().sentByUid == request.auth.uid && incoming().serverCreatedAt == request.time && isAdmin();
+      allow update: if isSignedIn() && isValidId(alertId) && isValidBroadcastAlert(incoming()) && incoming().id == existing().id && incoming().sentByUid == existing().sentByUid && incoming().serverCreatedAt == existing().serverCreatedAt && isAdmin();
+      allow delete: if isSignedIn() && isValidId(alertId) && isAdmin();
+    }
+
+    // --- Written Breaking News Articles ---
+    match /newsArticles/{articleId} {
+      allow get: if isValidId(articleId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(articleId) && isValidNewsArticle(incoming()) && incoming().id == articleId && incoming().serverCreatedAt == request.time && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && (!('sentByUid' in incoming()) || incoming().sentByUid == request.auth.uid) && isAdmin();
+      allow update: if isSignedIn() && isValidId(articleId) && isValidNewsArticle(incoming()) && incoming().id == existing().id && incoming().serverCreatedAt == existing().serverCreatedAt && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isValidId(articleId) && isAdmin();
+    }
+
+    // --- Featured Artists ---
+    match /artists/{artistId} {
+      allow get: if isValidId(artistId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(artistId) && isValidArtist(incoming()) && incoming().id == artistId && incoming().serverCreatedAt == request.time && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && (!('sentByUid' in incoming()) || incoming().sentByUid == request.auth.uid) && isAdmin();
+      allow update: if isSignedIn() && isValidId(artistId) && isValidArtist(incoming()) && incoming().id == existing().id && incoming().serverCreatedAt == existing().serverCreatedAt && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time) && isAdmin();
+      allow delete: if isSignedIn() && isValidId(artistId) && isAdmin();
+    }
+
+    // --- Unified Station Updates Feed ---
+    match /stationUpdates/{updateId} {
+      allow get: if isValidId(updateId);
+      allow list: if true;
+      allow create: if isSignedIn() && isValidId(updateId) && isValidStationUpdate(incoming()) && incoming().id == updateId && incoming().sentByUid == request.auth.uid && incoming().serverCreatedAt == request.time && isAdmin();
+      allow update: if isSignedIn() && isValidId(updateId) && isValidStationUpdate(incoming()) && incoming().id == existing().id && incoming().sentByUid == existing().sentByUid && incoming().serverCreatedAt == existing().serverCreatedAt && isAdmin();
+      allow delete: if isSignedIn() && isValidId(updateId) && isAdmin();
+    }
+
+    // --- FCM Web Push Subscriptions ---
+    match /fcmSubscriptions/{subId} {
+      allow get: if isSignedIn() && isValidId(subId) && (isOwner(subId) || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn() &&
+        isValidId(subId) &&
+        isValidFcmSubscription(incoming()) &&
+        incoming().id == subId &&
+        incoming().uid == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        isOwner(subId);
+      allow update: if isSignedIn() &&
+        isValidId(subId) &&
+        isValidFcmSubscription(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().uid == existing().uid &&
+        incoming().updatedAt == request.time &&
+        (isOwner(subId) || isAdmin());
+      allow delete: if isSignedIn() && isValidId(subId) && (isOwner(subId) || isAdmin());
+    }
+
+    // --- Admin Role Allowlist ---
+    match /admins/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+      allow create, update: if isSignedIn() && isValidId(userId) && isValidAdminRecord(incoming()) && incoming().uid == userId && incoming().grantedAt == request.time && isAdmin();
+      allow delete: if isSignedIn() && isValidId(userId) && isAdmin();
+    }
+  }
+}

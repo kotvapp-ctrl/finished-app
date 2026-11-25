@@ -1,0 +1,13 @@
+{
+	"appId": "com.kakumiro.onlinetv",
+	"appName": "Kakumiro Online TV",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"android": {
+		"allowMixedContent": true,
+		"backgroundColor": "#101016"
+	}
+}
